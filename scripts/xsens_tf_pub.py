@@ -39,8 +39,9 @@ if __name__ == '__main__':
             if msg is not None:
                 #ipdb.set_trace()
                 look_up_t = rospy.Time(0)
-                listener.waitForTransform('body_sonser', 't8', look_up_t, rospy.Duration(3))
-                t8_to_bodysensor = listener.lookupTransform('body_sonser', 't8', look_up_t)
+                listener.waitForTransform('body_sensor', 't8_sternum_up_xsens', look_up_t, rospy.Duration(3))
+                t8_to_bodysensor = listener.lookupTransform('body_sensor', 't8_sternum_up_xsens', look_up_t)
+                
                 t8_to_bodysensor_mat = listener.fromTranslationRotation(*t8_to_bodysensor) 
 
 
@@ -59,6 +60,6 @@ if __name__ == '__main__':
                         trans,
                         quat,
                         rospy.Time.now(),
-                        'body_sonser',
+                        'body_sensor',
                         'base', 
                     )
