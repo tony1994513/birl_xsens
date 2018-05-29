@@ -24,20 +24,20 @@ def cb(msg):
     if writable.is_set():
         shared_msg = msg
 
-def rotate_mat_fnc(mat):
-    # rotate pi/2 around x axis
-    rotate_mat_x = [[1,0,0,0],
-                [0,cos(pi/2),-sin(pi/2),0],
-                [0,sin(pi/2),cos(pi/2),0],
-                [0,0,0,1],]
+# def rotate_mat_fnc(mat):
+#     # rotate pi/2 around x axis
+#     rotate_mat_x = [[1,0,0,0],
+#                 [0,cos(pi/2),-sin(pi/2),0],
+#                 [0,sin(pi/2),cos(pi/2),0],
+#                 [0,0,0,1],]
 
-    rotate_mat_z = [
-                [cos(-pi/2),-sin(-pi/2),0,0],
-                [sin(-pi/2),cos(-pi/2),0,0],
-                [0,0,1,0],
-                [0,0,0,1],]
-    tmp = numpy.dot(mat, rotate_mat_x)
-    return numpy.dot(rotate_mat_z,tmp)
+#     rotate_mat_z = [
+#                 [cos(-pi/2),-sin(-pi/2),0,0],
+#                 [sin(-pi/2),cos(-pi/2),0,0],
+#                 [0,0,1,0],
+#                 [0,0,0,1],]
+#     tmp = numpy.dot(mat, rotate_mat_x)
+#     return numpy.dot(rotate_mat_z,tmp)
 
 
 if __name__ == '__main__':
@@ -58,6 +58,7 @@ if __name__ == '__main__':
     xsense_trans = [None] * 23
     xsense_quat = [None] * 23
     xsense_tf_mat = [None] * 23
+    xsense_tf_quat = [None] * 23
     rospy.loginfo("Node is started, shutdown in 3s if no tf coming ")
     while not rospy.is_shutdown():
             writable.clear()
@@ -71,11 +72,13 @@ if __name__ == '__main__':
                     xsense_tf_mat_ = listener.lookupTransform('body_sensor', tf_name, look_up_t)
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                    continue
+                xsense_tf_quat[tf_index] = xsense_tf_mat_[1]
                 xsense_tf_mat[tf_index] = listener.fromTranslationRotation(*xsense_tf_mat_) 
                 trans = (xsense_tf_mat_[0][0],xsense_tf_mat_[0][1],xsense_tf_mat_[0][2])
                 quat = (0,0,0,1)
                 xsense_tf_mat[tf_index] = numpy.dot(translation_matrix(trans), quaternion_matrix(quat)) # xsense tf matrix 
-                 
+
+ 
             if msg is not None:
                 marker =  msg.markers[0]  # get marker info 
                 pose = marker.pose.pose
@@ -83,32 +86,17 @@ if __name__ == '__main__':
                 ori = pose.orientation
                 ori = numpy.array([0,0,0,1]) # make marker's orientation be the same with xsense's orientation
                 base_to_marker_mat = numpy.dot(translation_matrix((pos.x, pos.y, pos.z)), quaternion_matrix((ori[0], ori[1], ori[2], ori[3]))) # marker matrix
-                xsense_tf_mat[4][:3,:3] = numpy.array([1,0,0,0,1,0,0,0,1]).reshape(3,3)
                 t8_mat = xsense_tf_mat[4]
+                t8_mat[:3,:3] = numpy.array([1,0,0,0,1,0,0,0,1]).reshape(3,3)
                 xsens_base = numpy.dot(base_to_marker_mat,inv(t8_mat)) # transform between xsense and base
                 trans = translation_from_matrix(xsens_base)
                 quat = quaternion_from_matrix(xsens_base)
-                broadcaster.sendTransform(
-                    trans,
-                    quat,
-                    rospy.Time.now(),
-                    'xsens',
-                    'base', 
-                )
 
                 for tf_mat_index,tf_mat in enumerate(xsense_tf_mat):    
                     xsense_each_base = numpy.dot(tf_mat,xsens_base)
                     xsense_trans[tf_mat_index] = translation_from_matrix(xsense_each_base)
-                    xsense_quat[tf_mat_index] = quaternion_from_matrix(xsense_each_base)
                 
-                # broadcaster.sendTransform(
-                #     xsense_trans[4],
-                #     xsense_quat[4],
-                #     rospy.Time.now(),
-                #     't8',
-                #     'base', 
-                # )
-                for trans,quat,tf_name in zip(xsense_trans,xsense_quat,xsense_tf_new_names): 
+                for trans,quat,tf_name in zip(xsense_trans,xsense_tf_quat,xsense_tf_new_names): 
                     broadcaster.sendTransform(
                         trans,
                         quat,
@@ -116,5 +104,7 @@ if __name__ == '__main__':
                         tf_name,
                         'base', 
                     )
-
+                ipdb.set_trace()
+                dis = numpy.linalg.norm(xsense_trans[4] - numpy.array([pos.x, pos.y ,pos.z]))
+                rospy.loginfo("error between marker and xsens %s" %dis)
                     
