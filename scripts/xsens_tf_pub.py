@@ -31,7 +31,7 @@ if __name__ == '__main__':
     xsense_tf_mat = [None] * 23
     xsense_tf_quat = [None] * 23
 
-    calibrated_trans = (1.89605314 , 1.06414826, -1.06554058)  # calibration result
+    calibrated_trans = ( 1.03969634,  0.16611315, -0.84586934)  # calibration result
     calibrated_quat = (0, 0, 0, 1)
 
     marker_pos = (1.66251914, -0.17133719,  0.28578182)
@@ -66,6 +66,6 @@ if __name__ == '__main__':
                     tf_name,
                     'base', 
                 )
-            dis = numpy.linalg.norm(xsense_trans[4] - numpy.array(marker_pos))
-            rospy.loginfo("error between marker and xsens %s" %dis)
+            # dis = numpy.linalg.norm(xsense_trans[4] - numpy.array(marker_pos))
+            # rospy.loginfo("error between marker and xsens %s" %dis)
                     

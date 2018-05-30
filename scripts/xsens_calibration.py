@@ -37,7 +37,7 @@ if __name__ == '__main__':
 
     xsense_tf_mat = [None] * 23
     xsense_tf_quat = [None] * 23
-    calibrated_trans = (1.88442942,  1.06412441, -1.06703968)
+    calibrated_trans = ( 1.89846022,  1.06179248, -1.06540353)
     # marker_pos = (1.65030752, -0.17223643,  0.28370678)
     rospy.loginfo("Node started, shutdown in 3s if no tf coming ")
     rospy.loginfo("Calibrating")
@@ -63,7 +63,8 @@ if __name__ == '__main__':
 
             
             if msg is not None:
-                if msg.markers[0].id == 0:
+                # ipdb.set_trace()
+                if msg.markers[0].id == 0:   
                     marker =  msg.markers[0]  # get marker info 
                     pose = marker.pose.pose
                     pos = pose.position
