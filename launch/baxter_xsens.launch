@@ -1,6 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-
-<node pkg="tf" type="static_transform_publisher" name="pub_tf_baxterBase2cameraLink" args=" 2.59665249 -0.1928835   0.01233516 -0.59723743 -0.27076685  0.68111908 0.32568322  /base /body_sensor 100 " />
-
-</launch>  
