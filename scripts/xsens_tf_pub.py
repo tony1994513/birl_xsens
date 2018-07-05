@@ -31,14 +31,15 @@ if __name__ == '__main__':
     xsense_tf_mat = [None] * 23
     xsense_tf_quat = [None] * 23
 
-    calibrated_trans = ( 1.03969634,  0.16611315, -0.84586934)  # calibration result
+    calibrated_trans = ( 1.59246897 , 0.0763148 , -0.88838505)  # calibration result
     calibrated_quat = (0, 0, 0, 1)
 
     marker_pos = (1.66251914, -0.17133719,  0.28578182)
 
     xsens_base = numpy.dot(translation_matrix(calibrated_trans), quaternion_matrix(calibrated_quat))
     rospy.loginfo("Node is started, shutdown in 3s if no tf coming ")
-    
+    publish_rate = 50
+    r = rospy.Rate(publish_rate)
     while not rospy.is_shutdown(): 
             for tf_index,tf_name in enumerate(xsense_tf_names):  
                 look_up_t = rospy.Time(0)                   
@@ -66,6 +67,7 @@ if __name__ == '__main__':
                     tf_name,
                     'base', 
                 )
+            r.sleep()
             # dis = numpy.linalg.norm(xsense_trans[4] - numpy.array(marker_pos))
             # rospy.loginfo("error between marker and xsens %s" %dis)
                     

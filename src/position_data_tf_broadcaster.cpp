@@ -246,7 +246,6 @@ void handle_udp_msg(int fd, int argc, char* argv[])
 			int p = 0;
 			//printf("Message type 02: Pose data (Quaternion)\n"); 
 			for (p = 0; p < header.datagram_counter; p++) {
-                ROS_INFO("struck in P");
                 if (ros::isShuttingDown()){
                  ROS_INFO("ros shutdown is called");}
 			    parse_body(buf+cur_index+p*32, &segment_id,  &x, &y, &z, &re, &i, &j, &k);
