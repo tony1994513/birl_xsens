@@ -28,6 +28,7 @@ xsense_tf_names = ["right_hand_xsens","left_hand_xsens", ]
 # "left_foot_xsens_new", "left_toe_xsens_new"]
 
 shared_msg = None
+flag_marker = False
 
 def cb(msg):
         global flag_marker,shared_msg
@@ -51,37 +52,38 @@ def main():
     rospy.Subscriber("ar_pose_marker", AlvarMarkers, cb)
     listener = tf.TransformListener()
     flag_marker = False
-  
+    broadcaster = tf.TransformBroadcaster()
     rospy.loginfo("Node started, shutdown in 3s if no tf coming ")
     rospy.loginfo("Calibrating")
- 
+    publish_rate = 50
+    r = rospy.Rate(publish_rate)
     while not rospy.is_shutdown():
 
             look_up_t = rospy.Time(0)                   
-            listener.waitForTransform('t8_sternum_up_xsens', 'left_hand_xsens', look_up_t, rospy.Duration(3))
+            listener.waitForTransform('t8_sternum_up_xsens', 'right_hand_xsens', look_up_t, rospy.Duration(3))
             try:
-                t8_to_l_hand = listener.lookupTransform('t8_sternum_up_xsens', 'left_hand_xsens', look_up_t)
+                t8_to_r_hand = listener.lookupTransform('t8_sternum_up_xsens', 'right_hand_xsens', look_up_t)
             except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                 continue
-            t8_to_l_hand_quat = t8_to_l_hand[1]
-            t8_to_l_hand_mat = listener.fromTranslationRotation(*t8_to_l_hand) 
-
-            trans = (t8_to_l_hand_mat[0][0],t8_to_l_hand_mat[0][1],t8_to_l_hand_mat[0][2])
+            t8_to_r_hand_quat = t8_to_r_hand[1]
+            t8_to_r_hand_mat = listener.fromTranslationRotation(*t8_to_r_hand) 
+            # ipdb.set_trace()
+            trans = (t8_to_r_hand_mat[0][0],t8_to_r_hand_mat[0][1],t8_to_r_hand_mat[0][2])
             quat = (0,0,0,1)
 
-            t8_to_l_hand_mat = numpy.dot(translation_matrix(trans), quaternion_matrix(quat)) # xsense tf matrix 
+            t8_to_r_hand_mat = numpy.dot(translation_matrix(trans), quaternion_matrix(quat)) # xsense tf matrix 
 
             if shared_msg is not None:
                 base_to_marker_mat = shared_msg
-                base_to_l_hand = numpy.dot(base_to_marker_mat,t8_to_l_hand_mat) # transform between xsense and base
-                base_to_l_hand_trans = translation_from_matrix(base_to_l_hand)
-                rospy.loginfo("Calibration result is %s" %base_to_l_hand_trans)
+                base_to_r_hand = numpy.dot(t8_to_r_hand_mat,base_to_marker_mat) # transform between xsense and base
+                base_to_r_hand_trans = translation_from_matrix(base_to_r_hand)
+                rospy.loginfo("Calibration result is %s" %base_to_r_hand_trans)
             
                 broadcaster.sendTransform(
-                    base_to_l_hand_trans,
-                    t8_to_l_hand_quat,
+                    base_to_r_hand_trans,
+                    t8_to_r_hand_quat,
                     rospy.Time.now(),
-                    "left_hand_xsens",
+                    "right_hand_xsens_new",
                     'base', 
                 )
                 r.sleep()
