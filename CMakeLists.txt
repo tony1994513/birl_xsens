@@ -22,6 +22,6 @@ include_directories(
 ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(xsens_data_tf_broadcaster src/position_data_tf_broadcaster.cpp ${catkin_INCLUDE_DIRS})
+add_executable(xsens_mvn_driver src/xsens_mvn_driver.cpp ${catkin_INCLUDE_DIRS})
 
-target_link_libraries(xsens_data_tf_broadcaster ${catkin_LIBRARIES})
+target_link_libraries(xsens_mvn_driver ${catkin_LIBRARIES})
