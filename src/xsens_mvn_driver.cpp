@@ -9,11 +9,14 @@
 #include <stdlib.h>
 #include "xsens_mvn_driver.h"
 
-#define SERVER_PORT 9763 
-#define BUFF_LEN 1024
-#define PI 3.141592
+#define SERVER_PORT 9763 //udp ports, should be matched to window's port
+#define BUFF_LEN 1024 // buffe zone, must be large
+#define PI 3.141592 
 
-
+// header: defined in the .h file
+// buf: buff's first point
+// time_stamp_sec: tf time msg need
+// time_stamp_nsec: tf time msg need
 void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stamp_nsec)
 {
     int hour = 0, min = 0,sec = 0,nanosec = 0;
@@ -53,13 +56,6 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	sec = (int)float_time_code;
 	nanosec = (int)((float_time_code - sec)*1000);
 	to_stamp_sec = sec + min*100;
-	/* wrong logic!!
-	   nanosec = (int)((float_time_code - a)*1000); 
-	   float_time_code = (float)a;
-	   float_time_code /= 100;
-	   min = (int)float_time_code;
-	   sec = (int)((float_time_code - min)*100);
-	   to_stamp_sec = sec + min*60; */
 	//**convert to time stamp**
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
@@ -76,17 +72,7 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	sec = (int)float_time_code;
 	nanosec = (int)((float_time_code - sec)*1000);
 	to_stamp_sec = sec + min*100 + hour*100*100;
-	/*wrong logic!!
-	  nanosec = (int)((float_time_code - a)*1000);
-	  float_time_code = (float)a;
-	  float_time_code /= 100;
-	  min = (int)float_time_code;
-	  sec = (int)((float_time_code - min)*100);
-	  header->time_code = (int)header->time_code;
-	  header->time_code = header->time_code/100;
-	  hour = (int)header->time_code;
-	  min = (header->time_code - hour)*100;
-	  sec = sec + min*60 + hour*60*60; */
+
 	//convert to time stamp
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
@@ -104,12 +90,12 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	
 }
 
-
-
+// if don't use this function, coordinate won't be parsed correctly
 float parse_coordinates(float coordinate, int count, char *buf)
 {
     // check Endianess
-    //**** Intel processors use "Little Endian" byte order!
+    //**** Intel processors use the order of "Little Endian" byte!
+	// Little_Endian and Big_Endian; dif cpu has diff mode
     int num = 1;
     int Endianess;
     if(*(char *)&num == 1) {
@@ -135,6 +121,7 @@ float parse_coordinates(float coordinate, int count, char *buf)
     return coordinate;
 }
 
+// transform coordinate, y pointing up to z pointing up
 void convertFromYupToZup(float *x, float *y, float *z)
 {
     float x1 = *x;
@@ -146,32 +133,40 @@ void convertFromYupToZup(float *x, float *y, float *z)
     *z = y1;
 }
 
+// covert rad to deg
 float convertFromRadToDeg(float rad)
 {
     float deg = rad*180/PI;
     return deg;
 }
 
+/*
+4 bytes segment ID See 2.5.9
+4 bytes x–coordinate of segment position
+4 bytes y–coordinate of segment position
+4 bytes z–coordinate of segment position
+4 bytes q1 rotation – segment rotation quaternion component 1 (re)
+4 bytes q2 rotation – segment rotation quaternion component 1 (i)
+4 bytes q3 rotation – segment rotation quaternion component 1 (j)
+4 bytes q4 rotation – segment rotation quaternion component 1 (k)
+*/
 void parse_body(char *buf, int *segment_id, float *x, float *y, float *z, float *re, float *i, float *j, float *k)
 {
     int seg_id = 0;
     float x_p, y_p, z_p = 0.0;
     float q1_r, q2_r, q3_r, q4_r = 0.0;
-    memcpy(&seg_id, buf, 4);
+    memcpy(&seg_id, buf, 4); // copy buff's first 4 byte to seg_id 
     seg_id = ntohl(seg_id);
     *segment_id = seg_id;
     x_p = parse_coordinates(x_p, 4, buf);
     *x = x_p;
-    //memcpy(&x_p, buf+4, 4);
-    //x_p = ntohl(x_p);
+
     y_p = parse_coordinates(y_p, 8, buf);
     *y = y_p;
-    //memcpy(&y_p, buf+8, 4); 	
-    //y_p = ntohl(y_p);
+
     z_p = parse_coordinates(z_p, 12, buf);
     *z = z_p;
-    //memcpy(&z_p, buf+12, 4); 	
-    //z_p = ntohl(z_p);
+
     //convertFromYupToZup(&x_p, &y_p, &z_p);
     //need to convert from Y up tp Z up in type 01
 	
@@ -198,9 +193,11 @@ void parse_body(char *buf, int *segment_id, float *x, float *y, float *z, float 
     ********/
 }
 
+/*
+two index: 'read_bytes' for checking the index of received data, 
+'cur_index' for checking the index of parsed data
 
-
-
+*/
 void handle_udp_msg(int fd, int argc, char* argv[])
 {
     char *buf = (char*)malloc(1024);
@@ -212,7 +209,7 @@ void handle_udp_msg(int fd, int argc, char* argv[])
     int segment_id;
     float x, y, z;
     float re, i, j, k;
-    struct sockaddr_in client_addr;
+    struct sockaddr_in client_addr; // udp protocol
     socklen_t len = sizeof(client_addr);
     Header header;
     int round = 0;
@@ -225,21 +222,25 @@ void handle_udp_msg(int fd, int argc, char* argv[])
     while(ros::ok) 
     {   
 	    memset(buf, 0, BUFF_LEN);
-	    count = recvfrom(fd, buf+read_bytes, BUFF_LEN, 0, (struct sockaddr*)&client_addr, &len);
+		// return how many data has received
+	    count = recvfrom(fd, buf+read_bytes, BUFF_LEN, 0, (struct sockaddr*)&client_addr, &len); 
 	    if(count == -1)
 		{
 		    printf("receieve data fail!\n");
 		    return;
 		}
 	    read_bytes += count;
+		// len of header is 24 byte, parse data after receving complete header
 	    if (read_bytes >= 24) {
 		parse_header(&header, buf+cur_index, &time_stamp_sec, &time_stamp_nsec);
 		cur_index += 24;
+		// compare if received data is "MXTP02" which is Quaternion type
 		if (strncmp(header.ID_String, "MXTP02", 6) == 0) {
 		    //Message type 02 - Pose data (Quaternion)
 		    if (read_bytes >= 24+32*header.datagram_counter) {
 			int p = 0;
 			//printf("Message type 02: Pose data (Quaternion)\n"); 
+			// len of header is 24 byte, parse data after receving complete header
 			for (p = 0; p < header.datagram_counter; p++) {
                 if (ros::isShuttingDown()){
                  ROS_INFO("ros shutdown is called");}
@@ -427,9 +428,6 @@ int main(int argc, char* argv[])
     handle_udp_msg(server_fd, argc, argv);
 	
     close(server_fd);
-
-
-
 
 }
 	
