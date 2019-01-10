@@ -13,45 +13,34 @@
 #define BUFF_LEN 1024 // buffe zone, must be large
 #define PI 3.141592 
 
-// header: defined in the .h file
-// buf: buff's first point
-// time_stamp_sec: tf time msg need
-// time_stamp_nsec: tf time msg need
-void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stamp_nsec)
-{
-    int hour = 0, min = 0,sec = 0,nanosec = 0;
-    float a = 0.0;
-    int to_stamp_sec = 0;
-    float nano_1000;
-    float temp;
-    float float_time_code;
-    double b = 0.0;
-    memcpy(header->ID_String, buf, 6);
-    memcpy(&(header->sample_counter), buf+6, 4);
-    header->sample_counter = ntohl(header->sample_counter);
-    header->datagram_counter = buf[11];
-    header->number_of_items = buf[12];
-    memcpy(&(header->time_code), buf+12, 4);
-    header->time_code = ntohl(header->time_code);
-    float_time_code = (float)header->time_code;
+/*
+transfer xsens time code to ros tf time stamp
+time_stamp_sec: pointer; point to tf timestamp second
+time_stamp_nsec: pointer; point to tf timestamp nanosecond
+
+*/
+void parse_time_code(int *time_stamp_sec, int *time_stamp_nsec, int xsens_time_code) {
+	int hour = 0, min = 0,sec = 0,nanosec = 0,to_stamp_sec = 0;
+	float tmp = 0.0;
+	float float_time_code;
+    float_time_code = (float)xsens_time_code;
     //decoding time_code;
-    if (header->time_code <= 99999) { //if time_code < 99.999;
+    if (xsens_time_code <= 99999) { //if time_code < 99.999;
 	float_time_code /= 1000;
-	//(debug) printf("float_time_code = header->time_code/1000 = %f\n", float_time_code);
+	//(debug) printf("float_time_code = xsens_time_code/1000 = %f\n", float_time_code);
 	sec = (int)float_time_code;
 	//(debug) printf("sec = (int)float_time_code = %d\n", sec);
 	nanosec = (int)((float_time_code - sec)*1000);
 	//(debug)printf("nanosec = %d\n", nanosec);
-	to_stamp_sec = sec;
-		
+	to_stamp_sec = sec;		
 	//**convert to time stamp**
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
-    } else if (header->time_code > 99999 && header->time_code <= 9999999) { //if 99.999 < time_code <= 99:99.999;
+    } else if (xsens_time_code > 99999 && xsens_time_code <= 9999999) { //if 99.999 < time_code <= 99:99.999;
 	float_time_code = float_time_code/100000;
 	min = (int)float_time_code;
-	a = (int)((float_time_code - min)*100000);
-	float_time_code = (float)a;
+	tmp = (int)((float_time_code - min)*100000);
+	float_time_code = (float)tmp;
 	float_time_code /= 1000;
 	sec = (int)float_time_code;
 	nanosec = (int)((float_time_code - sec)*1000);
@@ -59,26 +48,41 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	//**convert to time stamp**
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
-    } else if (header->time_code > 9999999 && header->time_code <= 999999999) { //if 99:99.999 < time_code < 99:99:99.999;
+    } else if (xsens_time_code > 9999999 && xsens_time_code <= 999999999) { //if 99:99.999 < time_code < 99:99:99.999;
 	float_time_code /= 10000000;
 	hour = (int)float_time_code;
-	a = (int)((float_time_code - hour)*10000000);
-	float_time_code = (float)a;
+	tmp = (int)((float_time_code - hour)*10000000);
+	float_time_code = (float)tmp;
 	float_time_code = float_time_code/100000;
 	min = (int)float_time_code;
-	a = (int)((float_time_code - min)*100000);
-	float_time_code = (float)a;
+	tmp = (int)((float_time_code - min)*100000);
+	float_time_code = (float)tmp;
 	float_time_code /= 1000;
 	sec = (int)float_time_code;
 	nanosec = (int)((float_time_code - sec)*1000);
 	to_stamp_sec = sec + min*100 + hour*100*100;
-
 	//convert to time stamp
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
+	printf("time = %d:%d:%d.%d\n", hour, min, sec, nanosec);
     }
+
+}
+// header: defined in the .h file
+// buf: buff's first point
+// time_stamp_sec: tf time msg need
+// time_stamp_nsec: tf time msg need
+void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stamp_nsec)
+{
+    memcpy(header->ID_String, buf, 6);
+    memcpy(&(header->sample_counter), buf+6, 4);
+    header->sample_counter = ntohl(header->sample_counter);
+    header->datagram_counter = buf[11];
+    header->number_of_items = buf[12];
+    memcpy(&(header->time_code), buf+12, 4);
+    header->time_code = ntohl(header->time_code);
+	parse_time_code(time_stamp_sec, time_stamp_nsec, header->time_code);
     header->character_ID = buf[17];
-    // memcpy(header->reserved_for_future_use, buf+18, 7);
 	header->num_of_bodyseg=buf[18];
 	header->num_of_props= buf[19];
 	header->num_of_traking_data_seg = buf[20];
@@ -90,13 +94,12 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
     printf("datagram_counter = %d\n", header->datagram_counter);  
     printf("number_of_items = %d\n", header->number_of_items);
     printf("time_code = %d\n", (int)header->time_code);
-    printf("time = %d:%d:%d.%d\n", hour, min, sec, nanosec);
+    
     printf("time stamp for rosmsg: %d.%d\n", *time_stamp_sec, *time_stamp_nsec);
     printf("num_of_bodyseg = %d\n", header->num_of_bodyseg); 
 	printf("num_of_props = %d\n", header->num_of_props); 
 	printf("num_of_traking_data_seg = %d\n", header->num_of_traking_data_seg); 
-	printf("size_of_payload = %s\n", header->size_of_payload); 
-	
+	printf("size_of_payload = %s\n", header->size_of_payload); 	
 }
 
 // if don't use this function, coordinate won't be parsed correctly
@@ -252,126 +255,126 @@ void handle_udp_msg(int fd, int argc, char* argv[])
 			// len of header is 24 byte, parse data after receving complete header
 			for (p = 0; p < header.datagram_counter; p++) {
                 if (ros::isShuttingDown()){
-                 ROS_INFO("ros shutdown is called");}
+                ROS_INFO("ros shutdown is called");}
 			    parse_body(buf+cur_index+p*32, &segment_id,  &x, &y, &z, &re, &i, &j, &k);
 			    printf("re = %f, i = %f, j = %f, k = %f\n", re, i, j, k);
-			    ros::Time temp;	    
+			    ros::Time timer;	    
 			    switch (segment_id) {
 			    case 1:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				pelvis_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "pelvis_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				pelvis_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "pelvis_xsens"));
 				break;
 			    case 2:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				l5_abdomen_down_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "l5_abdomen_down_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				l5_abdomen_down_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "l5_abdomen_down_xsens"));
 				break;
 			    case 3:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    l3_abdomen_up_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "l3_abdomen_up_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    l3_abdomen_up_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "l3_abdomen_up_xsens"));
 				break;
 			    case 4:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    t12_sternum_down_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "t12_sternum_down_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    t12_sternum_down_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "t12_sternum_down_xsens"));
 				break;
 			    case 5:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    t8_sternum_up_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "t8_sternum_up_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    t8_sternum_up_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "t8_sternum_up_xsens"));
 				break;
 			    case 6:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    neck_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "neck_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    neck_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "neck_xsens"));
 				break;
 			    case 7:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    head_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "head_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    head_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "head_xsens"));
 				break;
 			    case 8:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_shoulder_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_shoulder_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_shoulder_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_shoulder_xsens"));
 				break;
 			    case 9:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_upper_arm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_upper_arm_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_upper_arm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_upper_arm_xsens"));
 				break;
 			    case 10:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_forearm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_forearm_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_forearm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_forearm_xsens"));
 				break;
 			    case 11:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_hand_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_hand_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_hand_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_hand_xsens"));
 				break;
 			    case 12:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    left_shoulder_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_shoulder_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    left_shoulder_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_shoulder_xsens"));
 				break;
 			    case 13:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    left_upper_arm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_upper_arm_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    left_upper_arm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_upper_arm_xsens"));
 				break;
 			    case 14:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    left_forearm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_forearm_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    left_forearm_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_forearm_xsens"));
 				break;
 			    case 15:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    left_hand_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_hand_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    left_hand_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_hand_xsens"));
 				break;
 				break;
 			    case 16:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_upper_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_upper_leg_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_upper_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_upper_leg_xsens"));
 				break;
 			    case 17:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_lower_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_lower_leg_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_lower_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_lower_leg_xsens"));
 				break;
 			    case 18:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_foot_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_foot_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_foot_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_foot_xsens"));
 				break;
 			    case 19:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-			    right_toe_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "right_toe_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+			    right_toe_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "right_toe_xsens"));
 				break;
 			    case 20:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				left_upper_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_upper_leg_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				left_upper_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_upper_leg_xsens"));
 				break;
 			    case 21:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				left_lower_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_lower_leg_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				left_lower_leg_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_lower_leg_xsens"));
 				break;
 			    case 22:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				left_foot_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_foot_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				left_foot_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_foot_xsens"));
 				break;
 			    case 23:
-				temp.sec = time_stamp_sec;
-				temp.nsec = time_stamp_nsec;
-				left_toe_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), temp, "body_sensor", "left_toe_xsens"));
+				timer.sec = time_stamp_sec;
+				timer.nsec = time_stamp_nsec;
+				left_toe_xsens.sendTransform(tf::StampedTransform(tf::Transform(tf::Quaternion(i, j, k, re), tf::Vector3(x, y, z)), timer, "body_sensor", "left_toe_xsens"));
 				break;
 			    }
 			}
