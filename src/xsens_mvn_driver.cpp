@@ -78,15 +78,24 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	*time_stamp_nsec = nanosec;
     }
     header->character_ID = buf[17];
-    memcpy(header->reserved_for_future_use, buf+18, 7);
-    /* printf("ID_String = %s\n", header->ID_String);
+    // memcpy(header->reserved_for_future_use, buf+18, 7);
+	header->num_of_bodyseg=buf[18];
+	header->num_of_props= buf[19];
+	header->num_of_traking_data_seg = buf[20];
+	memcpy(header->reserved_for_future_use, buf+20, 2);
+	memcpy(header->size_of_payload, buf+22, 2);
+
+    printf("ID_String = %s\n", header->ID_String);
     printf("sample_counter = %d\n", header->sample_counter);   //endian conversion
     printf("datagram_counter = %d\n", header->datagram_counter);  
     printf("number_of_items = %d\n", header->number_of_items);
     printf("time_code = %d\n", (int)header->time_code);
     printf("time = %d:%d:%d.%d\n", hour, min, sec, nanosec);
-    printf("time stamp for rosmsg: %d.%d\n", *stamp_sec, *stamp_nsec);
-    printf("character_ID = %d\n", header->character_ID); */
+    printf("time stamp for rosmsg: %d.%d\n", *time_stamp_sec, *time_stamp_nsec);
+    printf("num_of_bodyseg = %d\n", header->num_of_bodyseg); 
+	printf("num_of_props = %d\n", header->num_of_props); 
+	printf("num_of_traking_data_seg = %d\n", header->num_of_traking_data_seg); 
+	printf("size_of_payload = %s\n", header->size_of_payload); 
 	
 }
 
