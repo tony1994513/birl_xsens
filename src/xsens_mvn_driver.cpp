@@ -64,7 +64,7 @@ void parse_time_code(int *time_stamp_sec, int *time_stamp_nsec, int xsens_time_c
 	//convert to time stamp
 	*time_stamp_sec = to_stamp_sec;
 	*time_stamp_nsec = nanosec;
-	printf("time = %d:%d:%d.%d\n", hour, min, sec, nanosec);
+	// printf("time = %d:%d:%d.%d\n", hour, min, sec, nanosec);
     }
 
 }
@@ -88,18 +88,20 @@ void parse_header(Header *header, char *buf, int *time_stamp_sec, int *time_stam
 	header->num_of_traking_data_seg = buf[20];
 	memcpy(header->reserved_for_future_use, buf+20, 2);
 	memcpy(header->size_of_payload, buf+22, 2);
-
+	printf("time_code = %d\n", (int)header->time_code);
+	/*
     printf("ID_String = %s\n", header->ID_String);
     printf("sample_counter = %d\n", header->sample_counter);   //endian conversion
     printf("datagram_counter = %d\n", header->datagram_counter);  
     printf("number_of_items = %d\n", header->number_of_items);
-    printf("time_code = %d\n", (int)header->time_code);
+    
     
     printf("time stamp for rosmsg: %d.%d\n", *time_stamp_sec, *time_stamp_nsec);
     printf("num_of_bodyseg = %d\n", header->num_of_bodyseg); 
 	printf("num_of_props = %d\n", header->num_of_props); 
 	printf("num_of_traking_data_seg = %d\n", header->num_of_traking_data_seg); 
 	printf("size_of_payload = %s\n", header->size_of_payload); 	
+	*/
 }
 
 // if don't use this function, coordinate won't be parsed correctly
@@ -198,11 +200,11 @@ void parse_body(char *buf, int *segment_id, float *x, float *y, float *z, float 
     q4_r = convertFromRadToDeg(q4_r);
     *k = q4_r;
 
-    /********
+
     printf("Segment ID: %d\n", seg_id);
     printf("Segment Position: (%f, %f, %f)\n", x_p, y_p, z_p);
     printf("Segment Rotation Quaternion: (re:%f, i:%f, j:%f, k:%f)\n", q1_r, q2_r, q3_r, q4_r);
-    ********/
+
 }
 
 /*
@@ -399,6 +401,7 @@ void handle_udp_msg(int fd, int argc, char* argv[])
         }	
 	    round++;
 	    printf("round = %d\n", round);
+		printf("*******************\n");
     }
     free(buf);
 }
